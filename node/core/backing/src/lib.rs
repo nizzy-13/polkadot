@@ -674,6 +674,7 @@ impl CandidateBackingJob {
 			erasure_root,
 			new_validation_code: outputs.new_validation_code,
 			head_data: outputs.head_data,
+			processed_downward_messages: outputs.processed_downward_messages,
 		};
 
 		let res = match with_commitments(commitments) {
@@ -969,12 +970,14 @@ mod tests {
 					parent_head: HeadData(vec![7, 8, 9]),
 					block_number: Default::default(),
 					hrmp_mqc_heads: Vec::new(),
+					dmq_mqc_head: Default::default(),
 				},
 				transient: TransientValidationData {
 					max_code_size: 1000,
 					max_head_data_size: 1000,
 					balance: Default::default(),
 					code_upgrade_allowed: None,
+					dmq_length: 0,
 				},
 			};
 
@@ -1152,6 +1155,7 @@ mod tests {
 							upward_messages: Vec::new(),
 							fees: Default::default(),
 							new_validation_code: None,
+							processed_downward_messages: 0,
 						}),
 					)).unwrap();
 				}
@@ -1272,6 +1276,7 @@ mod tests {
 							upward_messages: Vec::new(),
 							fees: Default::default(),
 							new_validation_code: None,
+							processed_downward_messages: 0,
 						}),
 					)).unwrap();
 				}
@@ -1411,6 +1416,7 @@ mod tests {
 							upward_messages: Vec::new(),
 							fees: Default::default(),
 							new_validation_code: None,
+							processed_downward_messages: 0,
 						}),
 					)).unwrap();
 				}
@@ -1567,6 +1573,7 @@ mod tests {
 							upward_messages: Vec::new(),
 							fees: Default::default(),
 							new_validation_code: None,
+							processed_downward_messages: 0,
 						}),
 					)).unwrap();
 				}
