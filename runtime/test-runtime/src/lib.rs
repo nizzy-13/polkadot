@@ -444,7 +444,9 @@ impl paras::Trait for Runtime {
 	type Origin = Origin;
 }
 
-impl router::Trait for Runtime {}
+impl router::Trait for Runtime {
+	type UmpSink = ();
+}
 
 impl scheduler::Trait for Runtime {}
 
