@@ -153,6 +153,10 @@ decl_error! {
 		IncorrectDownwardMessageHandling,
 		/// At least one upward message sent does not pass the acceptance criteria.
 		InvalidUpwardMessages,
+		/// The candidate didn't follow the rules of HRMP watermark advancement.
+		HrmpWatermarkMishandling,
+		/// The HRMP messages sent by the candidate is not valid.
+		InvalidOutboundHrmp,
 	}
 }
 
@@ -441,6 +445,22 @@ impl<T: Trait> Module<T> {
 					),
 					Error::<T>::InvalidUpwardMessages,
 				);
+				ensure!(
+					<router::Module<T>>::check_hrmp_watermark(
+						para_id,
+						relay_parent_number,
+						// TODO: Hmm, we should settle on a single represenation of T::BlockNumber
+						T::BlockNumber::from(candidate.candidate.commitments.hrmp_watermark),
+					),
+					Error::<T>::HrmpWatermarkMishandling,
+				);
+				ensure!(
+					<router::Module<T>>::check_outbound_hrmp(
+						para_id,
+						&candidate.candidate.commitments.horizontal_messages,
+					),
+					Error::<T>::InvalidOutboundHrmp,
+				);
 
 				for (i, assignment) in scheduled[skip..].iter().enumerate() {
 					check_assignment_in_order(assignment)?;
@@ -586,6 +606,14 @@ impl<T: Trait> Module<T> {
 		weight += <router::Module<T>>::enact_upward_messages(
 			receipt.descriptor.para_id,
 			commitments.upward_messages,
+		);
+		weight += <router::Module<T>>::prune_hrmp(
+			receipt.descriptor.para_id,
+			T::BlockNumber::from(commitments.hrmp_watermark),
+		);
+		weight += <router::Module<T>>::queue_outbound_hrmp(
+			receipt.descriptor.para_id,
+			commitments.horizontal_messages,
 		);
 
 		Self::deposit_event(
@@ -886,6 +914,7 @@ mod tests {
 		relay_parent: Hash,
 		persisted_validation_data_hash: Hash,
 		new_validation_code: Option<ValidationCode>,
+		hrmp_watermark: BlockNumber,
 	}
 
 	impl TestCandidateBuilder {
@@ -901,6 +930,7 @@ mod tests {
 				commitments: CandidateCommitments {
 					head_data: self.head_data,
 					new_validation_code: self.new_validation_code,
+					hrmp_watermark: self.hrmp_watermark,
 					..Default::default()
 				},
 			}
@@ -1299,6 +1329,9 @@ mod tests {
 		let chain_b = ParaId::from(2);
 		let thread_a = ParaId::from(3);
 
+		// The block number of the relay-parent for testing.
+		const RELAY_PARENT_NUM: BlockNumber = 4;
+
 		let paras = vec![(chain_a, true), (chain_b, true), (thread_a, false)];
 		let validators = vec![
 			Sr25519Keyring::Alice,
@@ -1361,6 +1394,7 @@ mod tests {
 					relay_parent: System::parent_hash(),
 					pov_hash: Hash::from([1; 32]),
 					persisted_validation_data_hash: make_vdata_hash(chain_a).unwrap(),
+					hrmp_watermark: RELAY_PARENT_NUM,
 					..Default::default()
 				}.build();
 				collator_sign_candidate(
@@ -1394,6 +1428,7 @@ mod tests {
 					relay_parent: System::parent_hash(),
 					pov_hash: Hash::from([1; 32]),
 					persisted_validation_data_hash: make_vdata_hash(chain_a).unwrap(),
+					hrmp_watermark: RELAY_PARENT_NUM,
 					..Default::default()
 				}.build();
 				let mut candidate_b = TestCandidateBuilder {
@@ -1401,6 +1436,7 @@ mod tests {
 					relay_parent: System::parent_hash(),
 					pov_hash: Hash::from([2; 32]),
 					persisted_validation_data_hash: make_vdata_hash(chain_b).unwrap(),
+					hrmp_watermark: RELAY_PARENT_NUM,
 					..Default::default()
 				}.build();
 
@@ -1450,6 +1486,7 @@ mod tests {
 					relay_parent: System::parent_hash(),
 					pov_hash: Hash::from([1; 32]),
 					persisted_validation_data_hash: make_vdata_hash(chain_a).unwrap(),
+					hrmp_watermark: RELAY_PARENT_NUM,
 					..Default::default()
 				}.build();
 				collator_sign_candidate(
@@ -1519,6 +1556,7 @@ mod tests {
 					relay_parent: System::parent_hash(),
 					pov_hash: Hash::from([1; 32]),
 					persisted_validation_data_hash: make_vdata_hash(thread_a).unwrap(),
+					hrmp_watermark: RELAY_PARENT_NUM,
 					..Default::default()
 				}.build();
 
@@ -1558,6 +1596,7 @@ mod tests {
 					relay_parent: System::parent_hash(),
 					pov_hash: Hash::from([1; 32]),
 					persisted_validation_data_hash: make_vdata_hash(thread_a).unwrap(),
+					hrmp_watermark: RELAY_PARENT_NUM,
 					..Default::default()
 				}.build();
 
@@ -1596,6 +1635,7 @@ mod tests {
 					relay_parent: System::parent_hash(),
 					pov_hash: Hash::from([1; 32]),
 					persisted_validation_data_hash: make_vdata_hash(chain_a).unwrap(),
+					hrmp_watermark: RELAY_PARENT_NUM,
 					..Default::default()
 				}.build();
 
@@ -1643,6 +1683,7 @@ mod tests {
 					relay_parent: System::parent_hash(),
 					pov_hash: Hash::from([1; 32]),
 					persisted_validation_data_hash: make_vdata_hash(chain_a).unwrap(),
+					hrmp_watermark: RELAY_PARENT_NUM,
 					..Default::default()
 				}.build();
 
@@ -1683,6 +1724,7 @@ mod tests {
 					pov_hash: Hash::from([1; 32]),
 					new_validation_code: Some(vec![5, 6, 7, 8].into()),
 					persisted_validation_data_hash: make_vdata_hash(chain_a).unwrap(),
+					hrmp_watermark: RELAY_PARENT_NUM,
 					..Default::default()
 				}.build();
 
@@ -1725,6 +1767,7 @@ mod tests {
 					relay_parent: System::parent_hash(),
 					pov_hash: Hash::from([1; 32]),
 					persisted_validation_data_hash: [42u8; 32].into(),
+					hrmp_watermark: RELAY_PARENT_NUM,
 					..Default::default()
 				}.build();
 
@@ -1759,6 +1802,9 @@ mod tests {
 		let chain_a = ParaId::from(1);
 		let chain_b = ParaId::from(2);
 		let thread_a = ParaId::from(3);
+
+		// The block number of the relay-parent for testing.
+        const RELAY_PARENT_NUM: BlockNumber = 4;
 
 		let paras = vec![(chain_a, true), (chain_b, true), (thread_a, false)];
 		let validators = vec![
@@ -1820,6 +1866,7 @@ mod tests {
 				relay_parent: System::parent_hash(),
 				pov_hash: Hash::from([1; 32]),
 				persisted_validation_data_hash: make_vdata_hash(chain_a).unwrap(),
+				hrmp_watermark: RELAY_PARENT_NUM,
 				..Default::default()
 			}.build();
 			collator_sign_candidate(
@@ -1832,6 +1879,7 @@ mod tests {
 				relay_parent: System::parent_hash(),
 				pov_hash: Hash::from([2; 32]),
 				persisted_validation_data_hash: make_vdata_hash(chain_b).unwrap(),
+				hrmp_watermark: RELAY_PARENT_NUM,
 				..Default::default()
 			}.build();
 			collator_sign_candidate(
@@ -1844,6 +1892,7 @@ mod tests {
 				relay_parent: System::parent_hash(),
 				pov_hash: Hash::from([3; 32]),
 				persisted_validation_data_hash: make_vdata_hash(thread_a).unwrap(),
+				hrmp_watermark: RELAY_PARENT_NUM,
 				..Default::default()
 			}.build();
 			collator_sign_candidate(
@@ -1941,6 +1990,9 @@ mod tests {
 	fn can_include_candidate_with_ok_code_upgrade() {
 		let chain_a = ParaId::from(1);
 
+		// The block number of the relay-parent for testing.
+		const RELAY_PARENT_NUM: BlockNumber = 4;
+
 		let paras = vec![(chain_a, true)];
 		let validators = vec![
 			Sr25519Keyring::Alice,
@@ -1984,6 +2036,7 @@ mod tests {
 				pov_hash: Hash::from([1; 32]),
 				persisted_validation_data_hash: make_vdata_hash(chain_a).unwrap(),
 				new_validation_code: Some(vec![1, 2, 3].into()),
+				hrmp_watermark: RELAY_PARENT_NUM,
 				..Default::default()
 			}.build();
 			collator_sign_candidate(
