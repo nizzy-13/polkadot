@@ -32,7 +32,7 @@ use polkadot_node_primitives::{
 };
 use polkadot_primitives::v1::{
 	AuthorityDiscoveryId, AvailableData, BackedCandidate, BlockNumber,
-	Header as BlockHeader, CandidateDescriptor, CandidateEvent, CandidateReceipt,
+	Header as BlockHeader, CandidateDescriptor, CandidateEvent, CandidateReceipt, CandidateCommitments,
 	CollatorId, CommittedCandidateReceipt, CoreState, ErasureChunk,
 	GroupRotationInfo, Hash, Id as ParaId, OccupiedCoreAssumption,
 	PersistedValidationData, PoV, SessionIndex, SignedAvailabilityBitfield,
@@ -395,6 +395,12 @@ pub enum RuntimeApiRequest {
 		ParaId,
 		OccupiedCoreAssumption,
 		RuntimeApiSender<Option<ValidationData>>,
+	),
+	/// Sends back `true` if the commitments pass all acceptance criteria checks.
+	CheckCandidateCommitments(
+		ParaId,
+		CandidateCommitments,
+		RuntimeApiSender<bool>,
 	),
 	/// Get the session index that a child of the block will have.
 	SessionIndexForChild(RuntimeApiSender<SessionIndex>),

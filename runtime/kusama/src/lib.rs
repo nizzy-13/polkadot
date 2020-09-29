@@ -24,9 +24,10 @@ use sp_std::prelude::*;
 use sp_core::u32_trait::{_1, _2, _3, _4, _5};
 use codec::{Encode, Decode};
 use primitives::v1::{
-	AccountId, AccountIndex, Balance, BlockNumber, CandidateEvent, CommittedCandidateReceipt,
-	CoreState, GroupRotationInfo, Hash, Id, Moment, Nonce, OccupiedCoreAssumption,
-	PersistedValidationData, Signature, ValidationCode, ValidationData, ValidatorId, ValidatorIndex,
+	AccountId, AccountIndex, Balance, BlockNumber, CandidateEvent, CandidateCommitments,
+	CommittedCandidateReceipt, CoreState, GroupRotationInfo, Hash, Id, Moment, Nonce,
+	OccupiedCoreAssumption, PersistedValidationData, Signature, ValidationCode, ValidationData,
+	ValidatorId, ValidatorIndex,
 };
 use runtime_common::{
 	claims, SlowAdjustingFeeUpdate, CurrencyToVote,
@@ -1120,6 +1121,13 @@ sp_api::impl_runtime_apis! {
 		fn persisted_validation_data(_: Id, _: OccupiedCoreAssumption)
 			-> Option<PersistedValidationData<BlockNumber>> {
 			None
+		}
+
+		fn check_candidate_commitments(
+			_: Id,
+			_: CandidateCommitments<BlockNumber>
+		) -> bool {
+			false
 		}
 
 		fn session_index_for_child() -> SessionIndex {

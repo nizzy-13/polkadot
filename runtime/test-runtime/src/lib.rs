@@ -32,7 +32,7 @@ use polkadot_runtime_parachains::{
 	scheduler,
 };
 use primitives::v1::{
-	AccountId, AccountIndex, Balance, BlockNumber, CandidateEvent, CommittedCandidateReceipt,
+	AccountId, AccountIndex, Balance, BlockNumber, CandidateEvent, CandidateCommitments, CommittedCandidateReceipt,
 	CoreState, GroupRotationInfo, Hash as HashT, Id as ParaId, Moment, Nonce, OccupiedCoreAssumption,
 	PersistedValidationData, Signature, ValidationCode, ValidationData, ValidatorId, ValidatorIndex,
 };
@@ -618,6 +618,13 @@ sp_api::impl_runtime_apis! {
 			-> Option<PersistedValidationData<BlockNumber>>
 		{
 			runtime_impl::persisted_validation_data::<Runtime>(para_id, assumption)
+		}
+
+		fn check_candidate_commitments(
+			para_id: ParaId,
+			commitments: CandidateCommitments<BlockNumber>,
+		) -> bool {
+			runtime_impl::check_candidate_commitments::<Runtime>(para_id, commitments)
 		}
 
 		fn session_index_for_child() -> SessionIndex {
